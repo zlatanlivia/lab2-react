@@ -17,50 +17,36 @@ function Board({ xIsNext, squares, onPlay }) {
       return;
     }
     const nextSquares = squares.slice(); 
-    if (xIsNext) {
-      nextSquares[i] = 'X';
-    } else {
-      nextSquares[i] = 'O';
-    }
+    nextSquares[i] = xIsNext ? 'X' : 'O';
     onPlay(nextSquares);
   }
 
   const winner = calculateWinner(squares);
-  let status;
-  if (winner) {
-    status = 'Winner: ' + winner.player;
-  } else if (!squares.includes(null)) {
-    status = 'Draw!';
-  } else {
-    status = 'Next player: ' + (xIsNext ? 'X' : 'O');
-  }
-
-  const boardRows = [];
-  for (let row = 0; row < 3; row++) {
-    const squaresInRow = [];
-    for (let col = 0; col < 3; col++) {
-      const index = row * 3 + col;
-      const isWinningSquare = winner && winner.line.includes(index);
-      squaresInRow.push(
-        <Square
-          key={index}
-          value={squares[index]}
-          onSquareClick={() => handleClick(index)}
-          isWinning={isWinningSquare}
-        />
-      );
-    }
-    boardRows.push(
-      <div key={row} className="board-row">
-        {squaresInRow} 
-      </div>
-    ); 
-  }
+  let status = winner 
+    ? 'Winner: ' + winner.player 
+    : squares.includes(null) 
+      ? 'Next player: ' + (xIsNext ? 'X' : 'O')
+      : 'Draw!';
 
   return (
     <>
       <div className="status">{status}</div>
-      {boardRows}
+      {[0, 1, 2].map(row => (
+        <div key={row} className="board-row">
+          {[0, 1, 2].map(col => {
+            const index = row * 3 + col;
+            const isWinningSquare = winner && winner.line.includes(index);
+            return (
+              <Square
+                key={`${row}-${col}`}
+                value={squares[index]}
+                onSquareClick={() => handleClick(index)}
+                isWinning={isWinningSquare}
+              />
+            );
+          })}
+        </div>
+      ))}
     </>
   );
 }
@@ -73,9 +59,8 @@ export default function Game() {
   const [isAscending, setIsAscending] = useState(true);
 
   function handlePlay(nextSquares) {
-    const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
-    setHistory(nextHistory);
-    setCurrentMove(nextHistory.length - 1);
+    setHistory([...history.slice(0, currentMove + 1), nextSquares]);
+    setCurrentMove(prev => prev + 1);
   }
 
   function jumpTo(nextMove) {
@@ -83,16 +68,12 @@ export default function Game() {
   }
 
   const moves = history.map((squares, move) => {
-    let description;
-    const row = Math.floor(getLastMove(squares, history[move - 1]) / 3) + 1;
-    const col = (getLastMove(squares, history[move - 1]) % 3) + 1;
-    
-    if (move > 0) {
-      description = `Go to move #${move} (${row}, ${col})`;
-    } else {
-      description = 'Go to game start';
-    }
-    
+    const lastMove = getLastMove(squares, history[move - 1]);
+    const row = Math.floor(lastMove / 3) + 1;
+    const col = (lastMove % 3) + 1;
+    const description = move > 0 
+      ? `Go to move #${move} (${row}, ${col})` 
+      : 'Go to game start';
     return (
       <li key={move}>
         {move === currentMove ? (
@@ -104,8 +85,6 @@ export default function Game() {
     );
   });
 
-  const sortedMoves = isAscending ? moves : [...moves].reverse();
-
   return (
     <div className="game">
       <div className="game-board">
@@ -115,7 +94,7 @@ export default function Game() {
         <button onClick={() => setIsAscending(!isAscending)}>
           {isAscending ? 'Sort Descending' : 'Sort Ascending'}
         </button>
-        <ol>{sortedMoves}</ol>
+        <ol>{isAscending ? moves : [...moves].reverse()}</ol>
       </div>
     </div>
   );
@@ -123,22 +102,13 @@ export default function Game() {
 
 function calculateWinner(squares) {
   const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
   ];
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
+  for (const [a, b, c] of lines) {
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return {
-        player: squares[a],
-        line: [a, b, c]
-      };
+      return { player: squares[a], line: [a, b, c] };
     }
   }
   return null;
@@ -146,10 +116,6 @@ function calculateWinner(squares) {
 
 function getLastMove(currentSquares, previousSquares) {
   if (!previousSquares) return 0;
-  for (let i = 0; i < currentSquares.length; i++) {
-    if (currentSquares[i] !== previousSquares[i]) {
-      return i;
-    }
-  }
-  return 0;
+  return currentSquares.findIndex((sq, i) => sq !== previousSquares[i]);
 }
+
